@@ -47,25 +47,25 @@ public class PantallaPrincipalController implements Initializable {
     @FXML private Button btnNuevaCliente;
     @FXML private Button btnNuevaVenta;
     @FXML private Button btnRecarga;
-
-    // Botones de método de pago
-    @FXML private Button btnMonedero1;  // Efectivo
-    @FXML private Button btnMonedero11; // Tarjeta
-    @FXML private Button btnMonedero12; // Transferencia
-    @FXML private Button btnMonedero13; // Saldo
-
-    // Campos de texto de la interfaz (Asegúrate de vincularlos en tu archivo FXML)
+    @FXML private Button btnMonedero1;
+    @FXML private Button btnMonedero11;
+    @FXML private Button btnMonedero12;
+    @FXML private Button btnMonedero13;
     @FXML private TextField txtEfectivoRecibido;
     @FXML private TextField txtCambio;
-
+    
     ObservableList<ProductoCarrito> carritoList = FXCollections.observableArrayList();
     private FilteredList<Producto> filteredProducts;
     private Popup suggestionPopup;
     private ListView<Producto> suggestionList;
-
-    // Variable para almacenar el método seleccionado
     private String metodoPagoSeleccionado = "";
 
+    /**
+     * Inicializa los componentes visuales, tablas, buscador y eventos.
+     *
+     * @param url Ubicación utilizada para resolver rutas relativas.
+     * @param rb  Recursos utilizados para localizar el objeto raíz.
+    */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -93,7 +93,10 @@ public class PantallaPrincipalController implements Initializable {
         configurarEventosMetodosPago();
         configurarCalculoCambio();
     }
-
+    
+    /**
+     * Configura el filtrado dinámico y la lista desplegable de productos.
+     */
     private void configurarBuscador() {
         ObservableList<Producto> productos = InformacionProductos.getInstance().getProductos();
         filteredProducts = new FilteredList<>(productos, p -> true);
@@ -147,14 +150,22 @@ public class PantallaPrincipalController implements Initializable {
         });
     }
 
-    // 1. SELECCIÓN DE MÉTODO DE COBRO
+    /**
+     * Asigna los eventos de selección a los botones de método de pago.
+    */
     private void configurarEventosMetodosPago() {
         btnMonedero1.setOnAction(e -> seleccionarMetodoPago("Efectivo", btnMonedero1));
         btnMonedero11.setOnAction(e -> seleccionarMetodoPago("Tarjeta", btnMonedero11));
         btnMonedero12.setOnAction(e -> seleccionarMetodoPago("Transferencia", btnMonedero12));
         btnMonedero13.setOnAction(e -> seleccionarMetodoPago("Saldo", btnMonedero13));
     }
-
+    
+    /**
+     * Marca visualmente el método de pago activo y ajusta el campo de efectivo.
+     *
+     * @param metodo      Nombre del método de pago seleccionado.
+     * @param botonActivo Botón de la interfaz presionado.
+     */
     private void seleccionarMetodoPago(String metodo, Button botonActivo) {
         this.metodoPagoSeleccionado = metodo;
 
@@ -178,13 +189,18 @@ public class PantallaPrincipalController implements Initializable {
         }
     }
 
-    // Cálculo automático de cambio mientras se escribe el efectivo
+    /**
+     * Activa el cálculo automático del cambio al escribir el efectivo recibido.
+    */
     private void configurarCalculoCambio() {
         if (txtEfectivoRecibido != null) {
             txtEfectivoRecibido.textProperty().addListener((obs, oldVal, newVal) -> calcularCambio());
         }
     }
-
+    
+    /**
+     * Calcula y muestra la diferencia entre el efectivo recibido y el total.
+    */
     private void calcularCambio() {
         if (txtEfectivoRecibido == null || txtCambio == null) return;
         try {
@@ -196,7 +212,12 @@ public class PantallaPrincipalController implements Initializable {
             txtCambio.setText("$0.00");
         }
     }
-
+    
+    /**
+    * Agrega un producto al carrito o incrementa su cantidad si ya existe.
+    *
+    * @param seleccionado Producto a agregar.
+    */
     private void agregarProductoDirecto(Producto seleccionado) {
         if (seleccionado.getStock() < 1) {
             mostrarAlerta("Stock insuficiente para " + seleccionado.getNombre());
@@ -213,7 +234,12 @@ public class PantallaPrincipalController implements Initializable {
         carritoList.add(new ProductoCarrito(seleccionado, 1));
         actualizarTotales();
     }
-
+    
+    /**
+    * Maneja el evento del botón para agregar productos desde el buscador.
+    *
+    * @param event Evento de acción generado por el botón.
+    */
     @FXML
     private void agregarProductoAlCarrito(ActionEvent event) {
         String texto = busquedaCarrito.getText().trim();
@@ -241,11 +267,18 @@ public class PantallaPrincipalController implements Initializable {
         suggestionPopup.hide();
     }
 
-    
+    /**
+    * Calcula el monto total acumulado en el carrito.
+    *
+    * @return Suma total a pagar.
+    */
     private double obtenerTotalNumerico() {
         return carritoList.stream().mapToDouble(ProductoCarrito::getTotal).sum();
     }
-
+    
+    /**
+    * Actualiza las etiquetas de cantidad de artículos y total a pagar.
+    */
     private void actualizarTotales() {
         int totalArticulos = carritoList.stream().mapToInt(ProductoCarrito::getCantidad).sum();
         double totalPagar = obtenerTotalNumerico();
@@ -254,8 +287,12 @@ public class PantallaPrincipalController implements Initializable {
         lblTotal.setText(String.format("$%.2f", totalPagar));
         calcularCambio();
     }
-
-    // 2. PROCESAR COBRO, GENERAR TICKET Y VACIAR CARRITO
+    
+    /**
+    * Valida la venta, descuenta inventario, genera el ticket y vacía el carrito.
+    *
+    * @param event Evento de acción generado por el botón Cobrar.
+    */
     @FXML
     private void cobrar(ActionEvent event) {
         if (carritoList.isEmpty()) {
@@ -272,7 +309,6 @@ public class PantallaPrincipalController implements Initializable {
         double efectivoRecibido = total;
         double cambio = 0.0;
 
-        // Validar monto si se eligió Efectivo
         if (metodoPagoSeleccionado.equals("Efectivo") && txtEfectivoRecibido != null) {
             try {
                 efectivoRecibido = Double.parseDouble(txtEfectivoRecibido.getText().trim());
@@ -287,10 +323,8 @@ public class PantallaPrincipalController implements Initializable {
             }
         }
 
-        // Guardar copia de los productos vendidos antes de limpiar el carrito
         List<ProductoCarrito> productosVendidos = new ArrayList<>(carritoList);
 
-        // Descontar stock en el inventario
         for (ProductoCarrito item : productosVendidos) {
             for (Producto p : InformacionProductos.getInstance().getProductos()) {
                 if (p.getIdProducto() == item.getId()) {
@@ -300,14 +334,16 @@ public class PantallaPrincipalController implements Initializable {
             }
         }
 
-        // Mostrar ticket en ventana independiente
         mostrarVentanaTicket(productosVendidos, total, metodoPagoSeleccionado, efectivoRecibido, cambio);
 
-        // Limpiar interfaz y vaciar carrito
         limpiarVenta();
     }
 
-    // Método para vaciar el carrito y reiniciar controles
+    /**
+    * Reinicia el carrito y controles al presionar Nueva Venta.
+    *
+    * @param event Evento de acción generado por el botón Nueva Venta.
+    */
     @FXML
     private void nuevaVenta(ActionEvent event) {
         limpiarVenta();
@@ -332,8 +368,16 @@ public class PantallaPrincipalController implements Initializable {
             txtCambio.clear();
         }
     }
-
-    // 3. VENTANA INDEPENDIENTE DEL TICKET
+    
+    /**
+    * Despliega una ventana independiente con el desglose del ticket de compra.
+    *
+    * @param items    Lista de productos vendidos.
+    * @param total    Total de la venta.
+    * @param metodo   Método de pago utilizado.
+    * @param recibido Monto recibido en efectivo.
+    * @param cambio   Cambio devuelto al cliente.
+    */
     private void mostrarVentanaTicket(List<ProductoCarrito> items, double total, String metodo, double recibido, double cambio) {
         Stage ticketStage = new Stage();
         ticketStage.setTitle("Ticket de Venta - NOVA");
@@ -385,7 +429,12 @@ public class PantallaPrincipalController implements Initializable {
         ticketStage.setScene(new Scene(layout));
         ticketStage.showAndWait();
     }
-
+    
+    /**
+    * Muestra un cuadro de diálogo de advertencia al usuario.
+    *
+    * @param mensaje Texto informativo a mostrar.
+    */
     private void mostrarAlerta(String mensaje) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setTitle("Aviso - NOVA");
